@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: telos
+      POSTGRES_USER: telos
+      POSTGRES_PASSWORD: telos
+    ports:
+      - "5432:5432"
+    volumes:
+      - telos-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U telos -d telos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  telos:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://telos:telos@postgres:5432/telos
+    depends_on:
+      postgres:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+
+volumes:
+  telos-postgres:

@@ -4,7 +4,25 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "langgraph",
+    "langchain-ollama",
+    "langgraph-checkpoint-postgres",
+    "sqlalchemy",
+    "alembic",
+    "psycopg[binary,pool]",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
 
 [project.scripts]
 telos = "telos.main:main"
