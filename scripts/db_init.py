@@ -2,12 +2,13 @@
 
 from langgraph.checkpoint.postgres import PostgresSaver
 
-from telos.config import Settings
+from telos.config import database_url_from_env
 
 
 def main() -> None:
-    settings = Settings.from_env()
-    with PostgresSaver.from_conn_string(settings.checkpoint_database_url) as checkpointer:
+    database_url = database_url_from_env()
+    checkpoint_url = database_url.replace("postgresql+psycopg://", "postgresql://", 1)
+    with PostgresSaver.from_conn_string(checkpoint_url) as checkpointer:
         checkpointer.setup()
 
 

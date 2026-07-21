@@ -9,13 +9,13 @@ db-up: ## Start PostgreSQL
 	docker compose up -d postgres
 
 migrate: ## Upgrade application schema
-	uv run alembic upgrade head
+	@set -a; [ ! -f .env ] || . ./.env; set +a; uv run alembic upgrade head
 
 db-init: migrate ## Initialize application and checkpoint schemas
-	uv run python scripts/db_init.py
+	@set -a; [ ! -f .env ] || . ./.env; set +a; uv run python scripts/db_init.py
 
 run: ## Run the host CLI
-	uv run telos
+	@set -a; [ ! -f .env ] || . ./.env; set +a; uv run telos
 
 dev: db-up db-init run ## Start dependencies and run Telos
 
