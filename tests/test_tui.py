@@ -38,7 +38,10 @@ class FakeService:
 
 
 def transcript_text(app):
-    return "\n".join(str(child.render()) for child in app.query_one("#transcript").children)
+    return "\n".join(
+        child._markdown or child._initial_markdown
+        for child in app.query_one("#transcript").children
+    )
 
 
 def test_tui_streams_a_new_message_and_supports_commands():

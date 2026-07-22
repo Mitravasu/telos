@@ -6,7 +6,7 @@ from uuid import UUID
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll
-from textual.widgets import Input, ListItem, ListView, Static
+from textual.widgets import Input, ListItem, ListView, Markdown, Static
 
 from telos.interfaces.commands import CommandName, CommandParser
 
@@ -21,7 +21,13 @@ class TelosApp(App):
     #transcript { height: 1fr; padding: 1 2; }
     #picker { display: none; height: 1fr; padding: 1 2; }
     #prompt { dock: bottom; }
-    .message { margin-bottom: 1; padding: 0 1; }
+    .message {
+        margin-bottom: 1;
+        padding: 1;
+        content-align: center middle;
+        text-align: center;
+    }
+    .message > MarkdownParagraph { margin: 0; }
     .user { background: $primary 15%; }
     .assistant { background: $surface; }
     """
@@ -35,7 +41,7 @@ class TelosApp(App):
         self._picker_chats = []
         self._generation_worker = None
         self._generation_active = False
-        self._streaming_message: Static | None = None
+        self._streaming_message: Markdown | None = None
         self._streamed_content = ""
 
     def compose(self) -> ComposeResult:
@@ -43,9 +49,9 @@ class TelosApp(App):
         yield ListView(id="picker")
         yield Input(placeholder="Message Telos or type /help", id="prompt")
 
-    def on_mount(self) -> None:
+    async def on_mount(self) -> None:
         self.query_one("#prompt", Input).focus()
-        self._show_help()
+        await self._show_help()
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         text = event.value.strip()
@@ -75,23 +81,23 @@ class TelosApp(App):
             if self.current_chat_id is None:
                 self.notify("No current chat to retry.", severity="warning")
             else:
-                self._start_stream(self.service.stream_retry(self.current_chat_id), show_user=None)
+                await self._start_stream(self.service.stream_retry(self.current_chat_id), show_user=None)
         elif name is CommandName.HELP:
-            self._show_help()
+            await self._show_help()
         else:
             self.notify(f"Unknown command: {argument}. {HELP}", severity="error")
 
     async def _send(self, content: str) -> None:
         if self.current_chat_id is None:
             self.current_chat_id = (await self.service.create_chat()).id
-        self._start_stream(self.service.stream_message(self.current_chat_id, content), show_user=content)
+        await self._start_stream(self.service.stream_message(self.current_chat_id, content), show_user=content)
 
-    def _start_stream(self, stream, show_user: str | None) -> None:
+    async def _start_stream(self, stream, show_user: str | None) -> None:
         if self._generation_active:
             self.notify("A response is already in progress.", severity="warning")
             return
         if show_user is not None:
-            self._append_message(show_user, "user")
+            await self._append_message(show_user, "user")
         self._generation_active = True
         self._generation_worker = self.run_worker(
             self._render_stream(stream), group="generation", exclusive=True
@@ -102,20 +108,20 @@ class TelosApp(App):
         prompt.disabled = True
         content = ""
         self._streamed_content = ""
-        self._streaming_message = self._append_message("", "assistant")
+        self._streaming_message = await self._append_message("", "assistant")
         try:
             async for message in stream:
                 if isinstance(message, AIMessageChunk):
                     content += _content_text(message.content)
                     self._streamed_content = content
-                    self._streaming_message.update(content)
+                    await self._streaming_message.update(content)
                 elif isinstance(message, AIMessage):
-                    self._streaming_message.update(_content_text(message.content))
+                    await self._streaming_message.update(_content_text(message.content))
         except asyncio.CancelledError:
-            self._streaming_message.update(f"{content}\n\n[Generation cancelled]")
+            await self._streaming_message.update(f"{content}\n\n[Generation cancelled]")
             raise
         except Exception as error:
-            self._streaming_message.update(f"{content}\n\n[Error: {error}]")
+            await self._streaming_message.update(f"{content}\n\n[Error: {error}]")
         finally:
             self._streaming_message = None
             self._generation_active = False
@@ -149,10 +155,6 @@ class TelosApp(App):
 
     def action_interrupt(self) -> None:
         if self._generation_active:
-            if self._streaming_message is not None:
-                self._streaming_message.update(
-                    f"{self._streamed_content}\n\n[Generation cancelled]"
-                )
             self._generation_worker.cancel()
         else:
             self.exit()
@@ -169,21 +171,22 @@ class TelosApp(App):
         await self._clear_transcript()
         for message in await self.service.get_messages(chat_id):
             if isinstance(message, HumanMessage):
-                self._append_message(_content_text(message.content), "user")
+                await self._append_message(_content_text(message.content), "user")
             elif isinstance(message, AIMessage):
-                self._append_message(_content_text(message.content), "assistant")
+                await self._append_message(_content_text(message.content), "assistant")
 
     async def _clear_transcript(self) -> None:
         await self.query_one("#transcript", VerticalScroll).remove_children()
 
-    def _append_message(self, content: str, style: str) -> Static:
-        message = Static(content, classes=f"message {style}")
-        self.query_one("#transcript", VerticalScroll).mount(message)
-        self.query_one("#transcript", VerticalScroll).scroll_end(animate=False)
+    async def _append_message(self, content: str, style: str) -> Markdown:
+        message = Markdown(content, classes=f"message {style}")
+        transcript = self.query_one("#transcript", VerticalScroll)
+        await transcript.mount(message)
+        transcript.scroll_end(animate=False)
         return message
 
-    def _show_help(self) -> None:
-        self._append_message(HELP, "assistant")
+    async def _show_help(self) -> None:
+        await self._append_message(HELP, "assistant")
 
 
 def _content_text(content: str | list[str | dict]) -> str:
