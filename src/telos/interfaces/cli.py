@@ -14,7 +14,7 @@ class CLI:
         self.current_chat_id: UUID | None = None
         self.last_listed_chats = []
 
-    def run(self) -> None:
+    async def run(self) -> None:
         self.output("Telos. " + HELP)
         while True:
             try:
@@ -23,31 +23,31 @@ class CLI:
                 self.output("\nGoodbye.")
                 return
             if line:
-                self.handle(line)
+                await self.handle(line)
 
-    def handle(self, line: str) -> None:
+    async def handle(self, line: str) -> None:
         if line.startswith("/"):
-            self._command(line)
+            await self._command(line)
             return
         if self.current_chat_id is None:
-            self.current_chat_id = self.service.create_chat().id
+            self.current_chat_id = (await self.service.create_chat()).id
         try:
-            self.output(self.service.send_message(self.current_chat_id, line).content)
+            self.output((await self.service.send_message(self.current_chat_id, line)).content)
         except Exception as error:
             self.output(f"Error: {error}")
 
-    def _command(self, line: str) -> None:
+    async def _command(self, line: str) -> None:
         command, _, argument = line.partition(" ")
         if command == "/new":
             self.current_chat_id = None
             self.output("A new chat will start with your next message.")
         elif command == "/chats":
-            self.last_listed_chats = self.service.list_chats()
+            self.last_listed_chats = await self.service.list_chats()
             for index, chat in enumerate(self.last_listed_chats, 1):
                 self.output(f"{index}. {chat.title or '(untitled)'} [{chat.id}]")
         elif command == "/resume":
             if not argument:
-                self._command("/chats")
+                await self._command("/chats")
             elif argument.isdigit() and 1 <= int(argument) <= len(self.last_listed_chats):
                 self.current_chat_id = self.last_listed_chats[int(argument) - 1].id
                 self.output("Resumed chat.")
@@ -58,7 +58,7 @@ class CLI:
                 self.output("No current chat to retry.")
             else:
                 try:
-                    self.output(self.service.retry(self.current_chat_id).content)
+                    self.output((await self.service.retry(self.current_chat_id)).content)
                 except Exception as error:
                     self.output(f"Error: {error}")
         elif command == "/help":
