@@ -5,13 +5,13 @@ from contextlib import AsyncExitStack
 
 from langchain_ollama import ChatOllama
 from langfuse import get_client
-from langfuse.langchain import CallbackHandler
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from telos.agents.orchestrator import build_graph
 from telos.config import Settings
 from telos.db.session import create_session_factory, create_sync_engine
 from telos.interfaces.tui import TelosApp
+from telos.observability import TelosCallbackHandler
 from telos.services.chat import ChatService
 
 
@@ -27,7 +27,7 @@ async def run() -> None:
         else {},
     )
     langfuse = get_client()
-    langfuse_handler = CallbackHandler()
+    langfuse_handler = TelosCallbackHandler()
 
     try:
         async with AsyncExitStack() as stack:

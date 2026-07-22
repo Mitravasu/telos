@@ -21,7 +21,7 @@ def test_main_composes_cloud_dependencies(monkeypatch):
     handler = object()
     langfuse = SimpleNamespace(flush=lambda: captured.setdefault("flushed", True))
     monkeypatch.setattr(telos.main, "get_client", lambda: langfuse)
-    monkeypatch.setattr(telos.main, "CallbackHandler", lambda: handler)
+    monkeypatch.setattr(telos.main, "TelosCallbackHandler", lambda: handler)
     @asynccontextmanager
     async def checkpointer_context(url):
         async def setup():
