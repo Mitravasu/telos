@@ -14,7 +14,7 @@ migrate: ## Upgrade application schema
 db-init: migrate ## Initialize application and checkpoint schemas
 	@set -a; [ ! -f .env ] || . ./.env; set +a; uv run python scripts/db_init.py
 
-run: ## Run the host CLI
+run: ## Run the host Textual TUI
 	@set -a; [ ! -f .env ] || . ./.env; set +a; uv run telos
 
 dev: db-up db-init run ## Start dependencies and run Telos
@@ -31,7 +31,7 @@ lint: ## Run lint checks
 docker-build: ## Build the application image
 	docker compose build telos
 
-docker-run: ## Run the containerized CLI
+docker-run: ## Run the containerized Textual TUI
 	docker compose run --rm telos
 
 down: ## Stop containers
