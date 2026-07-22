@@ -91,7 +91,7 @@ class TelosApp(App):
             self.notify("A response is already in progress.", severity="warning")
             return
         if show_user is not None:
-            self._append_message("You", show_user, "user")
+            self._append_message(show_user, "user")
         self._generation_active = True
         self._generation_worker = self.run_worker(
             self._render_stream(stream), group="generation", exclusive=True
@@ -102,20 +102,20 @@ class TelosApp(App):
         prompt.disabled = True
         content = ""
         self._streamed_content = ""
-        self._streaming_message = self._append_message("Telos", "", "assistant")
+        self._streaming_message = self._append_message("", "assistant")
         try:
             async for message in stream:
                 if isinstance(message, AIMessageChunk):
                     content += _content_text(message.content)
                     self._streamed_content = content
-                    self._streaming_message.update(f"Telos\n{content}")
+                    self._streaming_message.update(content)
                 elif isinstance(message, AIMessage):
-                    self._streaming_message.update(f"Telos\n{_content_text(message.content)}")
+                    self._streaming_message.update(_content_text(message.content))
         except asyncio.CancelledError:
-            self._streaming_message.update(f"Telos\n{content}\n\n[Generation cancelled]")
+            self._streaming_message.update(f"{content}\n\n[Generation cancelled]")
             raise
         except Exception as error:
-            self._streaming_message.update(f"Telos\n{content}\n\n[Error: {error}]")
+            self._streaming_message.update(f"{content}\n\n[Error: {error}]")
         finally:
             self._streaming_message = None
             self._generation_active = False
@@ -151,7 +151,7 @@ class TelosApp(App):
         if self._generation_active:
             if self._streaming_message is not None:
                 self._streaming_message.update(
-                    f"Telos\n{self._streamed_content}\n\n[Generation cancelled]"
+                    f"{self._streamed_content}\n\n[Generation cancelled]"
                 )
             self._generation_worker.cancel()
         else:
@@ -169,21 +169,21 @@ class TelosApp(App):
         await self._clear_transcript()
         for message in await self.service.get_messages(chat_id):
             if isinstance(message, HumanMessage):
-                self._append_message("You", _content_text(message.content), "user")
+                self._append_message(_content_text(message.content), "user")
             elif isinstance(message, AIMessage):
-                self._append_message("Telos", _content_text(message.content), "assistant")
+                self._append_message(_content_text(message.content), "assistant")
 
     async def _clear_transcript(self) -> None:
         await self.query_one("#transcript", VerticalScroll).remove_children()
 
-    def _append_message(self, role: str, content: str, style: str) -> Static:
-        message = Static(f"{role}\n{content}", classes=f"message {style}")
+    def _append_message(self, content: str, style: str) -> Static:
+        message = Static(content, classes=f"message {style}")
         self.query_one("#transcript", VerticalScroll).mount(message)
         self.query_one("#transcript", VerticalScroll).scroll_end(animate=False)
         return message
 
     def _show_help(self) -> None:
-        self._append_message("Telos", HELP, "assistant")
+        self._append_message(HELP, "assistant")
 
 
 def _content_text(content: str | list[str | dict]) -> str:

@@ -49,12 +49,12 @@ def test_tui_streams_a_new_message_and_supports_commands():
             await pilot.press("h", "i", "enter")
             await app._generation_worker.wait()
             assert service.created == 1
-            assert "You\nhi" in transcript_text(app)
-            assert "Telos\nstreamed answer" in transcript_text(app)
+            assert "hi" in transcript_text(app)
+            assert "streamed answer" in transcript_text(app)
 
             await pilot.press("/", "r", "e", "t", "r", "y", "enter")
             await app._generation_worker.wait()
-            assert "Telos\nretry" in transcript_text(app)
+            assert "retry" in transcript_text(app)
 
             await pilot.press("/", "n", "e", "w", "enter")
             assert app.current_chat_id is None
@@ -77,8 +77,8 @@ def test_tui_picker_redraws_persisted_history_and_escape_closes_it():
             picker.index = 0
             await app.on_list_view_selected(SimpleNamespace(list_view=picker))
             assert app.current_chat_id == app.service.chat_id
-            assert "You\nold question" in transcript_text(app)
-            assert "Telos\nold answer" in transcript_text(app)
+            assert "old question" in transcript_text(app)
+            assert "old answer" in transcript_text(app)
 
     asyncio.run(exercise())
 
