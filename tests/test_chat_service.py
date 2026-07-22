@@ -144,3 +144,41 @@ def test_cancellation_propagates_without_a_final_message(monkeypatch):
             await task
 
     asyncio.run(exercise())
+
+
+def test_cancellation_closes_the_graph_stream(monkeypatch):
+    class TrackedStream:
+        def __init__(self):
+            self.started = asyncio.Event()
+            self.closed = asyncio.Event()
+
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            self.started.set()
+            await asyncio.Event().wait()
+            raise StopAsyncIteration
+
+        async def aclose(self):
+            self.closed.set()
+
+    class Graph:
+        def __init__(self):
+            self.stream = TrackedStream()
+
+        def astream(self, *_args, **_kwargs):
+            return self.stream
+
+    graph = Graph()
+    service, _ = make_service(monkeypatch, graph)
+
+    async def exercise():
+        task = asyncio.create_task(service.send_message(uuid4(), "hello"))
+        await graph.stream.started.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    asyncio.run(exercise())
+    assert graph.stream.closed.is_set()

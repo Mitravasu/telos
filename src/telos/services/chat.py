@@ -68,11 +68,17 @@ class ChatService:
         self, chat_id: UUID, payload: dict[str, Any] | None, title: str | None = None
     ) -> AsyncIterator[AIMessageChunk | AIMessage]:
         config = self._graph_config(chat_id)
-        async for chunk in self._graph.astream(payload, config, stream_mode="custom"):
-            if isinstance(chunk, AIMessageChunk):
-                yield chunk
-            else:
-                yield AIMessageChunk(content=str(chunk))
+        events = self._graph.astream(payload, config, stream_mode="custom")
+        try:
+            async for chunk in events:
+                if isinstance(chunk, AIMessageChunk):
+                    yield chunk
+                else:
+                    yield AIMessageChunk(content=str(chunk))
+        finally:
+            close = getattr(events, "aclose", None)
+            if close is not None:
+                await close()
 
         state = await self._graph.aget_state(config)
         message = state.values["messages"][-1]
