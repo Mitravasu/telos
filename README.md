@@ -50,7 +50,7 @@ Type a message to start a chat. The chat is created only when the first message 
 | `/resume` or `/chats` | Open the keyboard chat picker. |
 | `/retry` | Retry the current turn without adding another user message. |
 | `/help` | Show command help in the transcript. |
-| `Shift+Enter` | Insert a new line in the message composer. |
+| `Shift+Enter` or `Ctrl+J` | Insert a new line in the message composer. `Ctrl+J` works in terminals that do not distinguish Shift+Enter. |
 | `Ctrl+C` | Cancel an active generation; otherwise exit. |
 | `Esc` | Close the chat picker. |
 

@@ -6,12 +6,37 @@ from uuid import UUID
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll
-from textual.widgets import Input, ListItem, ListView, Markdown, Static
+from textual.message import Message
+from textual.widgets import ListItem, ListView, Markdown, Static, TextArea
 
 from telos.interfaces.commands import CommandName, CommandParser
 
 
-HELP = "Commands: /new, /resume, /retry, /help. Ctrl+C cancels generation or exits."
+HELP = "Commands: /new, /resume, /retry, /help. Shift+Enter or Ctrl+J adds a line. Ctrl+C cancels or exits."
+PROMPT_MIN_HEIGHT = 3
+PROMPT_MAX_HEIGHT = 8
+
+
+class ChatInput(TextArea):
+    """Multiline prompt that sends on Enter and inserts a line on Shift+Enter or Ctrl+J."""
+
+    class Submitted(Message):
+        def __init__(self, input: "ChatInput") -> None:
+            super().__init__()
+            self.input = input
+
+    async def _on_key(self, event) -> None:
+        if event.key == "enter":
+            event.stop()
+            event.prevent_default()
+            self.post_message(self.Submitted(self))
+            return
+        if event.key in {"shift+enter", "ctrl+j"}:
+            event.stop()
+            event.prevent_default()
+            self.insert("\n")
+            return
+        await super()._on_key(event)
 
 
 class TelosApp(App):
@@ -20,7 +45,7 @@ class TelosApp(App):
     CSS = """
     #transcript { height: 1fr; padding: 1 2; }
     #picker { display: none; height: 1fr; padding: 1 2; }
-    #prompt { dock: bottom; }
+    #prompt { dock: bottom; margin: 0 2 1 2; height: 3; max-height: 8; }
     .message {
         margin-bottom: 1;
         padding: 1;
@@ -47,15 +72,15 @@ class TelosApp(App):
     def compose(self) -> ComposeResult:
         yield VerticalScroll(id="transcript")
         yield ListView(id="picker")
-        yield Input(placeholder="Message Telos or type /help", id="prompt")
+        yield ChatInput(placeholder="Message Telos or type /help", id="prompt")
 
     async def on_mount(self) -> None:
-        self.query_one("#prompt", Input).focus()
+        self.query_one("#prompt", ChatInput).focus()
         await self._show_help()
 
-    async def on_input_submitted(self, event: Input.Submitted) -> None:
-        text = event.value.strip()
-        event.input.value = ""
+    async def on_chat_input_submitted(self, event: ChatInput.Submitted) -> None:
+        text = event.input.text.strip()
+        event.input.load_text("")
         if not text:
             return
         if self._is_picker_open():
@@ -66,6 +91,11 @@ class TelosApp(App):
             await self._send(text)
         else:
             await self._handle_command(command.name, command.argument)
+
+    def on_text_area_changed(self, event: TextArea.Changed) -> None:
+        if isinstance(event.text_area, ChatInput):
+            lines = max(1, event.text_area.text.count("\n") + 1)
+            event.text_area.styles.height = min(PROMPT_MAX_HEIGHT, lines + 2)
 
     async def _handle_command(self, name: CommandName, argument: str) -> None:
         if name is CommandName.NEW:
@@ -104,7 +134,7 @@ class TelosApp(App):
         )
 
     async def _render_stream(self, stream) -> None:
-        prompt = self.query_one("#prompt", Input)
+        prompt = self.query_one("#prompt", ChatInput)
         prompt.disabled = True
         content = ""
         self._streamed_content = ""
@@ -162,7 +192,7 @@ class TelosApp(App):
     def _close_picker(self) -> None:
         self.query_one("#picker", ListView).display = False
         self.query_one("#transcript", VerticalScroll).display = True
-        self.query_one("#prompt", Input).focus()
+        self.query_one("#prompt", ChatInput).focus()
 
     def _is_picker_open(self) -> bool:
         return self.query_one("#picker", ListView).display

@@ -66,6 +66,32 @@ def test_tui_streams_a_new_message_and_supports_commands():
     asyncio.run(exercise())
 
 
+def test_tui_uses_shift_enter_for_multiline_messages():
+    async def exercise():
+        service = FakeService()
+        app = TelosApp(service)
+        async with app.run_test() as pilot:
+            await pilot.press("f", "i", "r", "s", "t", "shift+enter", "s", "e", "c", "o", "n", "d")
+            prompt = app.query_one("#prompt")
+            assert prompt.text == "first\nsecond"
+            assert prompt.styles.height.value == 4
+            await pilot.press("enter")
+            await app._generation_worker.wait()
+            assert "first\nsecond" in transcript_text(app)
+
+    asyncio.run(exercise())
+
+
+def test_tui_uses_ctrl_j_as_a_multiline_fallback():
+    async def exercise():
+        app = TelosApp(FakeService())
+        async with app.run_test() as pilot:
+            await pilot.press("f", "i", "r", "s", "t", "ctrl+j", "s", "e", "c", "o", "n", "d")
+            assert app.query_one("#prompt").text == "first\nsecond"
+
+    asyncio.run(exercise())
+
+
 def test_tui_picker_redraws_persisted_history_and_escape_closes_it():
     async def exercise():
         app = TelosApp(FakeService())
