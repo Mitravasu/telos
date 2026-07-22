@@ -1,20 +1,28 @@
-from langchain_core.messages import AIMessage
+import asyncio
+
+from langchain_core.messages import AIMessageChunk
 
 from telos.agents.orchestrator.graph import build_graph
 
 
-def test_graph_runs_one_llm_turn_and_returns_an_ai_message():
+def test_graph_streams_chunks_and_persists_one_ai_message():
     class Model:
-        def __init__(self):
-            self.calls = 0
+        async def astream(self, messages):
+            yield AIMessageChunk(content="res")
+            yield AIMessageChunk(content="ponse")
 
-        def invoke(self, messages):
-            self.calls += 1
-            assert messages[-1].content == "hello"
-            return AIMessage(content="response")
+    async def exercise():
+        graph = build_graph(Model(), None)
+        chunks = [
+            chunk
+            async for chunk in graph.astream(
+                {"messages": [("user", "hello")]}, stream_mode="custom"
+            )
+        ]
+        result = await graph.ainvoke({"messages": [("user", "again")]})
+        return chunks, result
 
-    model = Model()
-    result = build_graph(model, None).invoke({"messages": [("user", "hello")]})
+    chunks, result = asyncio.run(exercise())
 
-    assert model.calls == 1
+    assert [chunk.content for chunk in chunks] == ["res", "ponse"]
     assert result["messages"][-1].content == "response"

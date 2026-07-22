@@ -8,6 +8,7 @@ dependencies = [
     "langchain-ollama",
     "langgraph-checkpoint-postgres",
     "langfuse",
+    "textual",
     "sqlalchemy",
     "alembic",
     "psycopg[binary,pool]",

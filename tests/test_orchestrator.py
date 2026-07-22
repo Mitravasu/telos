@@ -1,18 +1,21 @@
+import asyncio
+
 import httpx
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
 
 from telos.agents.orchestrator.nodes import invoke_llm, is_retryable_llm_error
 from telos.agents.orchestrator.prompts import SYSTEM_PROMPT, build_messages
 
 
 class Model:
-    def invoke(self, messages):
-        return AIMessage(content="hello")
+    async def astream(self, messages):
+        yield AIMessageChunk(content="hello")
 
 
-def test_llm_node_returns_ai_message():
-    result = invoke_llm(Model())({"messages": [HumanMessage(content="hi")]})
+def test_llm_node_returns_ai_message(monkeypatch):
+    monkeypatch.setattr("telos.agents.orchestrator.nodes.get_stream_writer", lambda: lambda _: None)
+    result = asyncio.run(invoke_llm(Model())({"messages": [HumanMessage(content="hi")]}))
     assert result["messages"][0].content == "hello"
 
 
@@ -23,15 +26,16 @@ def test_prompt_preserves_full_conversation_after_system_message():
     assert messages[1:] == conversation
 
 
-def test_llm_node_normalizes_non_ai_message():
+def test_llm_node_normalizes_non_ai_message(monkeypatch):
+    monkeypatch.setattr("telos.agents.orchestrator.nodes.get_stream_writer", lambda: lambda _: None)
     class OtherMessage:
         content = "normalized"
 
     class OtherModel:
-        def invoke(self, messages):
-            return OtherMessage()
+        async def astream(self, messages):
+            yield OtherMessage()
 
-    result = invoke_llm(OtherModel())({"messages": [HumanMessage(content="hi")]})
+    result = asyncio.run(invoke_llm(OtherModel())({"messages": [HumanMessage(content="hi")]}))
     assert isinstance(result["messages"][0], AIMessage)
     assert result["messages"][0].content == "normalized"
 

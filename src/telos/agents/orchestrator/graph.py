@@ -1,4 +1,4 @@
-"""Synchronous root-agent graph."""
+"""Asynchronous root-agent graph."""
 
 from typing import Any
 
