@@ -40,14 +40,14 @@ def test_main_composes_cloud_dependencies(monkeypatch):
         telos.main, "ChatService", lambda session, graph, callbacks: (session, graph, callbacks)
     )
 
-    class FakeCLI:
+    class FakeApp:
         def __init__(self, service):
             captured["service"] = service
 
-        async def run(self):
+        async def run_async(self):
             captured["ran"] = True
 
-    monkeypatch.setattr(telos.main, "CLI", FakeCLI)
+    monkeypatch.setattr(telos.main, "TelosApp", FakeApp)
     asyncio.run(telos.main.run())
 
     assert captured["engine"] == settings.database_url

@@ -11,7 +11,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from telos.agents.orchestrator import build_graph
 from telos.config import Settings
 from telos.db.session import create_session_factory, create_sync_engine
-from telos.interfaces.cli import CLI
+from telos.interfaces.tui import TelosApp
 from telos.services.chat import ChatService
 
 
@@ -37,7 +37,7 @@ async def run() -> None:
             await checkpointer.setup()
             graph = build_graph(model, checkpointer)
             service = ChatService(session_factory, graph, callbacks=[langfuse_handler])
-            await CLI(service).run()
+            await TelosApp(service).run_async()
     finally:
         langfuse.flush()
 

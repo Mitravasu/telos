@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator, Callable
 from uuid import UUID
 from typing import Any
 
-from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage
 
 from telos.db.queries.chats import create_chat, get_chat, list_chats, touch_chat
 from telos.db.queries.users import get_or_create_development_user
@@ -27,6 +27,13 @@ class ChatService:
 
     async def resume_chat(self, chat_id: UUID):
         return await asyncio.to_thread(self._with_session, get_chat, chat_id, self.user_id)
+
+    async def get_messages(self, chat_id: UUID) -> list[BaseMessage]:
+        """Return persisted conversation messages for a chat owned by this user."""
+        if await self.resume_chat(chat_id) is None:
+            raise ValueError("Chat not found")
+        state = await self._graph.aget_state(self._graph_config(chat_id))
+        return list(state.values.get("messages", []))
 
     async def send_message(self, chat_id: UUID, content: str) -> AIMessage:
         return await self._consume_stream(chat_id, {"messages": [HumanMessage(content=content)]}, content)
