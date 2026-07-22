@@ -4,8 +4,10 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "langgraph",
+    "langchain",
     "langchain-ollama",
     "langgraph-checkpoint-postgres",
+    "langfuse",
     "sqlalchemy",
     "alembic",
     "psycopg[binary,pool]",

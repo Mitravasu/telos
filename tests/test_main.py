@@ -17,13 +17,19 @@ def test_main_composes_cloud_dependencies(monkeypatch):
         "ChatOllama",
         lambda **kwargs: captured.setdefault("model", SimpleNamespace(**kwargs)),
     )
+    handler = object()
+    langfuse = SimpleNamespace(flush=lambda: captured.setdefault("flushed", True))
+    monkeypatch.setattr(telos.main, "get_client", lambda: langfuse)
+    monkeypatch.setattr(telos.main, "CallbackHandler", lambda: handler)
     monkeypatch.setattr(
         telos.main,
         "PostgresSaver",
         SimpleNamespace(from_conn_string=lambda url: nullcontext(captured.setdefault("checkpoint", url))),
     )
     monkeypatch.setattr(telos.main, "build_graph", lambda model, checkpoint: (model, checkpoint))
-    monkeypatch.setattr(telos.main, "ChatService", lambda session, graph: (session, graph))
+    monkeypatch.setattr(
+        telos.main, "ChatService", lambda session, graph, callbacks: (session, graph, callbacks)
+    )
 
     class FakeCLI:
         def __init__(self, service):
@@ -38,4 +44,6 @@ def test_main_composes_cloud_dependencies(monkeypatch):
     assert captured["engine"] == settings.database_url
     assert captured["checkpoint"] == "postgresql://u:p@db/telos"
     assert captured["model"].client_kwargs == {"headers": {"Authorization": "Bearer key"}}
+    assert captured["service"][2] == [handler]
     assert captured["ran"] is True
+    assert captured["flushed"] is True

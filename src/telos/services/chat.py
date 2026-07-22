@@ -1,6 +1,7 @@
 """Chat lifecycle and graph invocation boundary."""
 
 from uuid import UUID
+from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage
 
@@ -9,9 +10,10 @@ from telos.db.queries.users import get_or_create_development_user
 
 
 class ChatService:
-    def __init__(self, session_factory, graph) -> None:
+    def __init__(self, session_factory, graph, callbacks: list[Any] | None = None) -> None:
         self._session_factory = session_factory
         self._graph = graph
+        self._callbacks = callbacks or []
         with self._session_factory() as session:
             self.user_id = get_or_create_development_user(session).id
 
@@ -29,7 +31,7 @@ class ChatService:
 
     def send_message(self, chat_id: UUID, content: str) -> AIMessage:
         result = self._graph.invoke(
-            {"messages": [HumanMessage(content=content)]}, {"configurable": {"thread_id": str(chat_id)}}
+            {"messages": [HumanMessage(content=content)]}, self._graph_config(chat_id)
         )
         message = result["messages"][-1]
         if not isinstance(message, AIMessage):
@@ -43,8 +45,19 @@ class ChatService:
         return message
 
     def retry(self, chat_id: UUID) -> AIMessage:
-        result = self._graph.invoke(None, {"configurable": {"thread_id": str(chat_id)}})
+        result = self._graph.invoke(None, self._graph_config(chat_id))
         message = result["messages"][-1]
         if not isinstance(message, AIMessage):
             raise RuntimeError("Graph did not return an AI message")
         return message
+
+    def _graph_config(self, chat_id: UUID) -> dict[str, Any]:
+        """Attach the current application identity to every Langfuse trace."""
+        return {
+            "configurable": {"thread_id": str(chat_id)},
+            "callbacks": self._callbacks,
+            "metadata": {
+                "langfuse_user_id": str(self.user_id),
+                "langfuse_session_id": str(chat_id),
+            },
+        }

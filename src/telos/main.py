@@ -3,6 +3,8 @@
 from contextlib import ExitStack
 
 from langchain_ollama import ChatOllama
+from langfuse import get_client
+from langfuse.langchain import CallbackHandler
 from langgraph.checkpoint.postgres import PostgresSaver
 
 from telos.agents.orchestrator import build_graph
@@ -23,12 +25,19 @@ def main() -> None:
         if settings.ollama_api_key
         else {},
     )
+    langfuse = get_client()
+    langfuse_handler = CallbackHandler()
 
-    with ExitStack() as stack:
-        checkpointer = stack.enter_context(PostgresSaver.from_conn_string(settings.checkpoint_database_url))
-        graph = build_graph(model, checkpointer)
-        service = ChatService(session_factory, graph)
-        CLI(service).run()
+    try:
+        with ExitStack() as stack:
+            checkpointer = stack.enter_context(
+                PostgresSaver.from_conn_string(settings.checkpoint_database_url)
+            )
+            graph = build_graph(model, checkpointer)
+            service = ChatService(session_factory, graph, callbacks=[langfuse_handler])
+            CLI(service).run()
+    finally:
+        langfuse.flush()
 
 
 if __name__ == "__main__":

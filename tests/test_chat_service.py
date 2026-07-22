@@ -22,7 +22,8 @@ def test_send_message_uses_chat_id_as_graph_thread(monkeypatch):
     session = object()
     monkeypatch.setattr("telos.services.chat.get_or_create_development_user", lambda _: SimpleNamespace(id=user_id))
     monkeypatch.setattr("telos.services.chat.get_chat", lambda *_: None)
-    service = ChatService(lambda: nullcontext(session), FakeGraph())
+    handler = object()
+    service = ChatService(lambda: nullcontext(session), FakeGraph(), callbacks=[handler])
 
     response = service.send_message(chat_id, "hello")
 
@@ -30,6 +31,11 @@ def test_send_message_uses_chat_id_as_graph_thread(monkeypatch):
     payload, config = service._graph.calls[0]
     assert payload["messages"][0].content == "hello"
     assert config["configurable"]["thread_id"] == str(chat_id)
+    assert config["callbacks"] == [handler]
+    assert config["metadata"] == {
+        "langfuse_user_id": str(user_id),
+        "langfuse_session_id": str(chat_id),
+    }
 
 
 def make_service(monkeypatch, graph, session=object(), user_id=None):
@@ -88,4 +94,16 @@ def test_retry_reuses_thread_without_a_new_user_message(monkeypatch):
     chat_id = uuid4()
 
     assert service.retry(chat_id).content == "reply"
-    assert graph.calls == [(None, {"configurable": {"thread_id": str(chat_id)}})]
+    assert graph.calls == [
+        (
+            None,
+            {
+                "configurable": {"thread_id": str(chat_id)},
+                "callbacks": [],
+                "metadata": {
+                    "langfuse_user_id": str(service.user_id),
+                    "langfuse_session_id": str(chat_id),
+                },
+            },
+        )
+    ]
