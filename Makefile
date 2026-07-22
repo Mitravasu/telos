@@ -22,6 +22,9 @@ dev: db-up db-init run ## Start dependencies and run Telos
 test: ## Run tests
 	uv run pytest
 
+test-integration: ## Run PostgreSQL integration tests
+	@set -a; [ ! -f .env ] || . ./.env; set +a; TELOS_TEST_DATABASE_URL="$${DATABASE_URL:-postgresql+psycopg://telos:telos@localhost:5432/telos}" uv run pytest -m integration --no-cov
+
 lint: ## Run lint checks
 	uv run ruff check .
 
