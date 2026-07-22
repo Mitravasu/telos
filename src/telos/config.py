@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import os
 
 
-DEFAULT_DATABASE_URL = "postgresql+psycopg://telos:telos@localhost:5432/telos"
+DEFAULT_DATABASE_URL = "postgresql+psycopg://telos:telos@localhost:5433/telos"
 
 
 def database_url_from_env() -> str:

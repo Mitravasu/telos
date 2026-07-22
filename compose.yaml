@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: telos
       POSTGRES_PASSWORD: telos
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - telos-postgres:/var/lib/postgresql/data
     healthcheck:
